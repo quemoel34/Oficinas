@@ -81,3 +81,16 @@ export const addFleet = (fleetData: Fleet) => {
         saveFleets([fleetData, ...fleets]);
     }
 };
+
+export const deleteVisit = (visitId: string): boolean => {
+  if (typeof window === 'undefined') return false;
+  let visits = getVisits();
+  const initialLength = visits.length;
+  visits = visits.filter(v => v.id !== visitId);
+  
+  if (visits.length < initialLength) {
+    saveVisits(visits);
+    return true;
+  }
+  return false;
+};
