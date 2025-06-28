@@ -9,7 +9,14 @@ import FleetHistory from './tabs/fleet-history';
 import { useState, useEffect, useCallback } from 'react';
 import { type Fleet, type Visit, type AuthUser } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { addVisit as addVisitToStorage, updateVisit as updateVisitInStorage, getVisits, getFleets, addFleet as addFleetToStorage } from '@/lib/data-manager';
+import { 
+    addVisit as addVisitToStorage, 
+    updateVisit as updateVisitInStorage, 
+    deleteVisit as deleteVisitFromStorage,
+    getVisits, 
+    getFleets, 
+    addFleet as addFleetToStorage 
+} from '@/lib/data-manager';
 import { logActivity } from '@/lib/activity-logger';
 
 interface DashboardProps {
@@ -81,6 +88,13 @@ export function Dashboard({ activeTab, onTabChange }: DashboardProps) {
     setViewingHistoryFor(fleet);
   };
   
+  const handleDeleteVisit = (visitId: string, visitFleetId: string) => {
+      if (!user) return;
+      deleteVisitFromStorage(visitId);
+      logActivity(user.name, 'DELETE', `Excluiu a visita ${visitId} da frota ${visitFleetId}.`);
+      setDataVersion(v => v + 1);
+  };
+
   const onAddVisitSubmit = (visitData: Omit<Visit, 'id' | 'equipmentType' | 'createdBy' | 'createdAt'> & { carrier: string }) => {
       if (!user) return;
       handleAddVisit(visitData, user);
@@ -118,7 +132,7 @@ export function Dashboard({ activeTab, onTabChange }: DashboardProps) {
       case 'new-visit':
         return <NewVisitForm onAddVisit={onAddVisitSubmit} />;
       case 'visits':
-        return <VisitsList visits={visits} onEditVisit={handleStartEdit} />;
+        return <VisitsList visits={visits} onEditVisit={handleStartEdit} onDeleteVisit={handleDeleteVisit} />;
       case 'fleets':
         return viewingHistoryFor ? (
           <FleetHistory
