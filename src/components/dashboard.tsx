@@ -15,7 +15,8 @@ import {
     deleteVisit as deleteVisitFromStorage,
     getVisits, 
     getFleets, 
-    addFleet as addFleetToStorage 
+    addFleet as addFleetToStorage,
+    deleteFleet as deleteFleetFromStorage
 } from '@/lib/data-manager';
 import { logActivity } from '@/lib/activity-logger';
 
@@ -95,6 +96,19 @@ export function Dashboard({ activeTab, onTabChange }: DashboardProps) {
       setDataVersion(v => v + 1);
   };
 
+  const handleDeleteFleet = (fleetId: string) => {
+    if (!user) return { success: false, hasVisits: false };
+    
+    const result = deleteFleetFromStorage(fleetId);
+
+    if (result.success) {
+      logActivity(user.name, 'DELETE', `Excluiu a frota ${fleetId}.`);
+      setDataVersion(v => v + 1);
+    }
+    
+    return result;
+  };
+
   const onAddVisitSubmit = (visitData: Omit<Visit, 'id' | 'equipmentType' | 'createdBy' | 'createdAt'> & { carrier: string }) => {
       if (!user) return;
       handleAddVisit(visitData, user);
@@ -146,6 +160,7 @@ export function Dashboard({ activeTab, onTabChange }: DashboardProps) {
             fleets={fleets}
             visits={visits}
             onViewHistory={handleViewHistory}
+            onDeleteFleet={handleDeleteFleet}
           />
         );
       default:
