@@ -1,22 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { type Fleet, type Visit } from '@/lib/types';
 import { Button } from '../ui/button';
-import { History, Truck, Search } from 'lucide-react';
+import { History, Truck, Search, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '../ui/input';
+import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface FleetsListProps {
   fleets: Fleet[];
   visits: Visit[];
   onViewHistory: (fleet: Fleet) => void;
+  onDeleteFleet: (fleetId: string) => { success: boolean; hasVisits: boolean };
 }
 
-export default function FleetsList({ fleets, visits, onViewHistory }: FleetsListProps) {
+export default function FleetsList({ fleets, visits, onViewHistory, onDeleteFleet }: FleetsListProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const canDelete = useMemo(() => {
+    if (!user) return false;
+    return ['admin01', 'quemoel457359'].includes(user.name);
+  }, [user]);
 
   const getFleetStats = (fleetId: string) => {
     const fleetVisits = visits
@@ -36,6 +47,25 @@ export default function FleetsList({ fleets, visits, onViewHistory }: FleetsList
         fleet.carrier.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : fleets;
+
+  const handleDelete = (e: React.MouseEvent, fleetId: string) => {
+    e.stopPropagation();
+    const result = onDeleteFleet(fleetId);
+    if (result.success) {
+      toast({
+        title: 'Frota Excluída',
+        description: `A frota ${fleetId} foi removida com sucesso.`,
+      });
+    } else {
+      toast({
+        title: 'Ação Bloqueada',
+        description: result.hasVisits 
+          ? 'Não é possível excluir frotas com histórico de visitas associado.' 
+          : 'Não foi possível excluir a frota. Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -76,9 +106,35 @@ export default function FleetsList({ fleets, visits, onViewHistory }: FleetsList
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full" variant="outline" onClick={() => onViewHistory(fleet)}>
-                    <History className="mr-2 h-4 w-4" /> Ver Histórico
-                  </Button>
+                  <div className="flex w-full items-center gap-2">
+                    <Button className="w-full flex-1" variant="outline" onClick={() => onViewHistory(fleet)}>
+                      <History className="mr-2 h-4 w-4" /> Ver Histórico
+                    </Button>
+                    {canDelete && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="destructive" size="icon" onClick={(e) => e.stopPropagation()}>
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Excluir Frota</span>
+                           </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                           <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação removerá permanentemente a frota <strong>{fleet.id}</strong>. A exclusão será bloqueada se a frota tiver um histórico de visitas associado.
+                              </AlertDialogDescription>
+                           </AlertDialogHeader>
+                           <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={(e) => handleDelete(e, fleet.id)}>
+                                Sim, excluir frota
+                              </AlertDialogAction>
+                           </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </CardFooter>
               </Card>
             );
