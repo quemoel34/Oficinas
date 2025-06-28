@@ -94,3 +94,23 @@ export const deleteVisit = (visitId: string): boolean => {
   }
   return false;
 };
+
+export const deleteFleet = (fleetId: string): { success: boolean; hasVisits: boolean } => {
+  if (typeof window === 'undefined') return { success: false, hasVisits: false };
+  
+  const visits = getVisits();
+  if (visits.some(v => v.fleetId === fleetId)) {
+    return { success: false, hasVisits: true };
+  }
+
+  let fleets = getFleets();
+  const initialLength = fleets.length;
+  fleets = fleets.filter(f => f.id !== fleetId);
+
+  if (fleets.length < initialLength) {
+    saveFleets(fleets);
+    return { success: true, hasVisits: false };
+  }
+
+  return { success: false, hasVisits: false };
+};
