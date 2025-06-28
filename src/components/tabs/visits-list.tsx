@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type Visit, type MaintenanceStatus, type OrderType, type Fleet, type Workshop } from '@/lib/types';
 import { Button } from '../ui/button';
-import { ArrowUp, ArrowDown, Edit } from 'lucide-react';
+import { ArrowUp, ArrowDown, Edit, Trash2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/contexts/auth-context';
 
 export const statusVariant: { [key in MaintenanceStatus]: 'default' | 'secondary' | 'destructive' | 'outline' | 'accent' } = {
   'Em Fila': 'accent',
@@ -31,6 +33,7 @@ const VisitDetailsDialog = dynamic(() => import('../visit-details-dialog').then(
 interface VisitsListProps {
   visits: Visit[];
   onEditVisit: (visit: Visit) => void;
+  onDeleteVisit: (visitId: string, visitFleetId: string) => void;
 }
 
 type SortableKey = keyof Visit | 'queueTime' | 'maintenanceTime' | 'partsTime' | 'totalTime';
@@ -43,7 +46,8 @@ const getDurationInSeconds = (start?: number, end?: number) => {
 };
 
 
-export default function VisitsList({ visits, onEditVisit }: VisitsListProps) {
+export default function VisitsList({ visits, onEditVisit, onDeleteVisit }: VisitsListProps) {
+  const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState<MaintenanceStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<OrderType | 'all'>('all');
   const [workshopFilter, setWorkshopFilter] = useState<Workshop | 'all'>('all');
@@ -52,6 +56,10 @@ export default function VisitsList({ visits, onEditVisit }: VisitsListProps) {
 
   const workshops = useMemo(() => Array.from(new Set(visits.map(v => v.workshop).filter(Boolean))) as Workshop[], [visits]);
 
+  const canDelete = useMemo(() => {
+    if (!user) return false;
+    return ['admin01', 'quemoel457359'].includes(user.name);
+  }, [user]);
 
   const sortedVisits = useMemo(() => {
     const filtered = visits
@@ -190,10 +198,36 @@ export default function VisitsList({ visits, onEditVisit }: VisitsListProps) {
                   </TableCell>
                   <TableCell>{visit.boxNumber || 'N/A'}</TableCell>
                   <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEditVisit(visit); }}>
-                          <Edit className="h-4 w-4" />
-                          <span className="sr-only">Editar Visita</span>
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEditVisit(visit); }}>
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Editar Visita</span>
+                        </Button>
+                        {canDelete && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <span className="sr-only">Excluir Visita</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta ação não pode ser desfeita. Isso excluirá permanentemente o registro da visita da frota <strong>{visit.fleetId}</strong>.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={(e) => { e.stopPropagation(); onDeleteVisit(visit.id, visit.fleetId); }}>
+                                  Sim, excluir visita
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                   </TableCell>
                 </TableRow>
               ))
